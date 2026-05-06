@@ -16,6 +16,7 @@ import shutil
 import subprocess
 
 from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.units import mm
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
@@ -90,10 +91,19 @@ def darken(color, factor=COL_TINT):
     return Color(color.red * factor, color.green * factor, color.blue * factor)
 
 
-def draw_bit_blocks(c, x, y, bits, size=None, gap=None):
+def draw_bit_blocks(c, x, y, bits, size=None, gap=None, start_num=None):
     """Draw colored squares for each bit at (x, y) bottom-left. Returns total width."""
     sz = size or BIT_BLOCK_SIZE
     gp = gap or BIT_BLOCK_GAP
+
+    if start_num is not None:
+        font_name = "Helvetica"
+        font_size = max(2.0, sz * 0.45)
+        ascent = pdfmetrics.getAscent(font_name, font_size)
+        descent = pdfmetrics.getDescent(font_name, font_size)
+        baseline = y + (sz - (ascent - descent)) / 2 - descent
+        c.setFont(font_name, font_size)
+
     for i, b in enumerate(bits):
         bx = x + i * (sz + gp)
         color = C1 if b == "1" else C0
@@ -101,6 +111,11 @@ def draw_bit_blocks(c, x, y, bits, size=None, gap=None):
         c.setStrokeColor(Color(0.5, 0.5, 0.5))
         c.setLineWidth(0.2)
         c.rect(bx, y, sz, sz, fill=1, stroke=1)
+
+        if start_num is not None:
+            c.setFillColor(Color(1, 1, 1) if b == "1" else Color(0, 0, 0))
+            c.drawCentredString(bx + sz / 2, baseline, str(start_num + i))
+
     return len(bits) * sz + (len(bits) - 1) * gp
 
 
@@ -127,7 +142,7 @@ def main():
         c.drawString(MARGIN_RIGHT, title_y, "BIP39")
 
         draw_bit_blocks(c, page_blocks_x, page_blocks_y, page_bits,
-                        size=PAGE_BLOCK_SIZE, gap=PAGE_BLOCK_GAP)
+                        size=PAGE_BLOCK_SIZE, gap=PAGE_BLOCK_GAP, start_num=1)
 
         # Explanatory text on title level
         after_blocks_x = page_blocks_x + 2 * (PAGE_BLOCK_SIZE + PAGE_BLOCK_GAP) + 3 * mm
@@ -150,7 +165,7 @@ def main():
             # Center blocks horizontally in column
             blocks_x = x + (COL_W - COL_BLOCKS_W) / 2
             draw_bit_blocks(c, blocks_x, col_header_y, col_bits,
-                            size=COL_BLOCK_SIZE, gap=COL_BLOCK_GAP)
+                            size=COL_BLOCK_SIZE, gap=COL_BLOCK_GAP, start_num=6)
 
         # --- Sections ---
         sec_blocks_x = MARGIN_RIGHT
@@ -174,7 +189,7 @@ def main():
             # Left margin: section bit blocks — vertically centered in section band
             blocks_y = section_top - SECTION_H / 2 - SEC_BLOCK_SIZE / 2
             draw_bit_blocks(c, sec_blocks_x, blocks_y, sec_bits,
-                            size=SEC_BLOCK_SIZE, gap=SEC_BLOCK_GAP)
+                            size=SEC_BLOCK_SIZE, gap=SEC_BLOCK_GAP, start_num=3)
 
             # Words in this section
             for col in range(COLS):
@@ -188,7 +203,7 @@ def main():
 
                     # Small bit blocks for word
                     draw_bit_blocks(c, x + 0.5 * mm, y + 0.2 * mm, word_bits,
-                                    size=BIT_BLOCK_SMALL, gap=BIT_BLOCK_SMALL_GAP)
+                                    size=BIT_BLOCK_SMALL, gap=BIT_BLOCK_SMALL_GAP, start_num=9)
 
                     # Word text
                     c.setFont("Courier", FONT_SIZE)
