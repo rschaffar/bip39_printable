@@ -1,61 +1,94 @@
 # BIP39 Printable Wordlist
 
-A printable 5-page layout of the BIP39 English wordlist (2048 words): 4 lookup pages plus 1 manual page. It is designed for fully offline seed phrase generation using physical coin flips. The bit-block layout maps coin outcomes directly to words -- no device needed at any point.
+A printable 6-page layout of the BIP39 English wordlist (2048 words): 1 manual page, 1 worksheet page, and 4 lookup pages. It is designed for fully offline word generation using your own physical randomness, whether you are rolling wallets or generating passphrases by hand. The goal is to make that manual process as easy and as error-resistant as possible. The bit-block layout maps 11 recorded bits directly to a BIP39 word on paper.
 
 ## Why
 
-Software-based seed generation has a large attack surface: compromised RNGs, malware, clipboard sniffers, screen capture, or a backdoored hardware stack. Even an air-gapped computer still requires trusting its entire software and hardware chain.
+Software-based seed generation has a large attack surface: compromised RNGs, malware, clipboard sniffers, screen capture, or a backdoored hardware stack. Even an air-gapped computer still requires trusting its software and hardware chain.
 
-Physical coin flips are a verifiable entropy source -- the randomness is directly observable. This also avoids having to trust the random-number generator inside a hardware wallet or other device. If that RNG is flawed or badly implemented, the seed it produces may be weaker than you expect. This printable layout eliminates the last digital dependency: looking up the BIP39 word for a given index. That lookup on a screen is an attack surface (screen capture, shoulder-surfing software, process monitoring) that this design removes entirely. The bit-block layout maps coin outcomes directly to words on paper -- no device involved in the generation step. In a private room without cameras, the entire process is unobservable to any remote attacker. There is simply no digital signal to intercept.
+This layout removes the digital part of the generation step. You produce the entropy yourself, record the bits, and look up the matching BIP39 word directly on paper. The pages are arranged to make rolling wallets or generating passphrases by hand simple to follow, less error-prone, and secure even when faced with low-quality dice.
 
 ## Preview
 
-[![Page 1](page_1.png)](bip39_wordlist.pdf)
+[![Manual page](page_1.png)](bip39_wordlist.pdf)
+[![Worksheet page](page_2.png)](bip39_wordlist.pdf)
+[![First lookup page](page_3.png)](bip39_wordlist.pdf)
+
+## Generating bits with a die
+
+### Bias-resistant method
+
+Use two rolls per attempt, always with a single die:
+
+1. Roll the same die twice.
+2. If both values are equal, discard the pair.
+3. If the **first** roll is **smaller** than the second, record **0**.
+4. If the **first** roll is **greater** than the second, record **1**.
+5. If you discard a pair, start over with two fresh rolls.
+
+So for example:
+
+- `2, 5` → `0`
+- `5, 2` → `1`
+- `4, 4` → discard
+
+For a fair die:
+
+- ties happen with probability **1/6**
+- accepted pairs happen with probability **5/6**
+- one 11-bit word takes about **13.2 pairs** on average
+- that is about **26.4 raw rolls** per word
+
+In general, more sides are better. For a fair **n**-sided die, the discard probability is **1/n** because only equal pairs are rejected. So a d20 wastes fewer rolls than a d6. A fair d20 needs about **11.6 pairs** on average for one 11-bit word, i.e. about **23.2 raw rolls**.
+
+### Why the math works even with an unfair die
+
+Let the probability of face `i` be `p(i)`.
+
+Pick any two distinct faces `a` and `b`.
+
+The ordered pair `a, b` with `a < b` produces `0` and has probability:
+
+- `p(a) p(b)`
+
+The reversed pair `b, a` produces `1` and has probability:
+
+- `p(b) p(a)`
+
+These are equal:
+
+- `p(a) p(b) = p(b) p(a)`
+
+So for every pair of different faces, the chance that `a` comes before `b` is exactly the same as the chance that `b` comes before `a`. Summing over all such pairs gives:
+
+- `P(0) = P(1)`
+
+So the method stays unbiased even if the die itself is unfair, as long as successive rolls are independent enough for practical use. Shake well, and only use a **single die** so the face probabilities stay constant from roll to roll.
 
 ## How to look up a word
 
-Flip 11 coins at once. Then arrange them in 4 rows:
+Record **11 bits**. Then split them into 4 groups:
 
-```
-          ┌─────────────┐
-   page   │  ●  ○       │  2 coins
-          ├─────────────┤
-   row    │  ○  ○  ●    │  3 coins
-          ├─────────────┤
-   column │  ●  ○  ●    │  3 coins
-          ├─────────────┤
-   word   │  ○  ●  ●    │  3 coins
-          └─────────────┘
-          ● = heads (dark)
-          ○ = tails (light)
+```text
+page   | 2 bits
+row    | 3 bits
+column | 3 bits
+word   | 3 bits
 ```
 
-Match each row's pattern against the dark/light blocks on the sheet:
+Match each group against the dark/light blocks on the lookup pages:
 
-1. **Page** -- match the 2-coin pattern to the page title blocks, pick the right page
-2. **Row** -- scan down the left margin, find the matching 3-block band
-3. **Column** -- scan right along the column headers, find the matching 3-block column
-4. **Word** -- within that cell, match the 3-block pattern next to each word
+1. **Page** — first 2 bits
+2. **Row** — next 3 bits
+3. **Column** — next 3 bits
+4. **Word** — last 3 bits
 
-Important: do **not** reroll just because the result looks too uneven, too balanced, or otherwise unusual. Real randomness naturally produces streaks and lopsided outcomes. Rejecting those results would bias the space of possible seeds.
+Interpret:
 
-What matters is that the process itself is neutral. A good manual method:
+- **dark = 1**
+- **light = 0**
 
-1. Shake all 11 coins in a closed box or cup.
-2. Spill them onto the table without looking at them yet.
-3. Take a straight edge (ruler, book spine, sheet of paper) and **slowly sweep it across the spread** -- always in the same direction, e.g. top to bottom, or left to right.
-4. The order in which the ruler's edge first touches each coin defines the bit order: first coin touched = bit 1, second = bit 2, ..., eleventh = bit 11.
-5. Only then look at each coin's face, in that fixed order, and write down heads/tails.
-
-The ruler sweep is what makes the ordering neutral: position on the table is determined by the spill (random), and the sweep direction is fixed in advance, so you never decide which coin is "next" based on how it landed. If two coins are touched at the same instant, pick consistently (e.g. the leftmost / topmost) -- the rule must be fixed before you look at the faces.
-
-Avoid:
-
-- **Spinning coins on a table.** Spun coins are heavily biased by the coin's center of mass and can land one way 70%+ of the time.
-- **Catch-and-slap flips** (catching the coin in mid-air and slapping it onto your wrist). This introduces a small but measurable bias toward the starting face. The bias is too small to meaningfully weaken a 132-bit seed, but the shake-and-spill method avoids the issue entirely.
-- **Inspecting and rearranging coins before recording.** If you reorder coins based on how they landed, you have biased the result. Place them in fixed positions without looking at the faces, then read.
-
-The bit-block layout is designed to make this as fast and error-resistant as possible -- match visual patterns instead of converting binary to decimal or scanning a sorted word list. Each level narrows the search by a fixed factor (4 → 8 → 8 → 8), so the lookup takes seconds.
+The worksheet page, right after the manual page, has empty boxes for `page`, `row`, `column`, and `word`, plus a final column where you can write the actual BIP39 word. It is meant for the bias-resistant two-roll method.
 
 ## Layout
 
@@ -68,67 +101,57 @@ Each word's 11-bit index is split into four visual levels:
 | 3 | Column (1 of 8) | Scan right to the column |
 | 3 | Word (1 of 8) | Find the word in the group |
 
-Each level uses dark/light bit-blocks for visual pattern matching -- throw coins (heads=dark, tails=light) and match the pattern directly.
-
 The 8 row bands per page have distinct background colors for quick scanning.
 
 ## Creating a wallet from the sheet
 
-You can also use the sheet to create a BIP39 wallet directly from coin flips, which eliminates the need to trust the random-number generator inside the hardware wallet.
+You can use the sheet to create a BIP39 wallet from your own physical randomness instead of trusting the random-number generator inside a hardware wallet.
 
-Note on scope: the seed unavoidably becomes digital the moment you type it into a hardware wallet for the recovery/import flow. The point of this method is to keep the *generation* step entirely off any device, so that a compromised RNG, a screen capture, or a malicious process cannot influence or observe the entropy. Pick a hardware wallet you trust for the import, and ideally do the import in the same private setting where you generated the seed -- then wipe any scratch paper.
+Generate the words on paper first. Then open the **restore/import** flow on a trusted hardware wallet. This is the trick: do not let the wallet create a new phrase. Instead, enter the words you generated on paper as if the wallet already existed. In simple terms, restoring those words gives you the same wallet the device would have created if it had generated that exact phrase itself.
 
-For a **12-word** wallet, BIP39 defines the mnemonic as **128 bits of entropy plus a 4-bit checksum**. See the **Generating the mnemonic** section of [BIP-0039](https://bips.dev/39/).
+For most people, **12 words are enough** when they are generated securely. Longer phrases are possible, but they are not required just to get strong security. Trezor makes the same point for newer devices: [12 words are enough](https://trezor.io/learn/security-privacy/personal-security-standards/understanding-trezor-wallet-backups-12-20-or-24-words).
 
-That makes the **12th word** special. It is not just another completely free 11-bit choice. Its first **7 bits** still come from your own randomness, but its last **4 bits** are checksum bits that must match the previous entropy.
+For a **12-word** phrase, generate the first **11 words** normally. For the **12th word**, only the first **7 bits** come from your own rolls. The last **4 bits** are a BIP39 checksum. They are there for error detection, so wallets can reject mistyped or otherwise invalid phrases. On the worksheet, those are the greyed fields in row 12. So after you have fixed the first 7 bits, there are **16** possible final words that fit that pattern.
 
-A practical workflow is:
+Try those final words one by one in the wallet's restore/import screen. In other words, you are using the restore screen to test which final phrase is valid. The wallet will reject the wrong ones and accept the right one. The accepted phrase is your real mnemonic.
 
-1. Generate the first 11 words normally from coin flips.
-2. Generate the 12th position from coin flips as well, but treat it as a **family of candidates** rather than one final word.
-3. Keep the first 7 bits of that last word fixed.
-4. Try the **16** possible final words that differ only in the last 4 checksum bits.
-5. On a trusted hardware wallet such as a **Trezor**, start the recovery/import flow and test those candidates until the device accepts the phrase.
+Expect about **8 tries on average**. Some wallets may make you enter all 12 words each time, so this can take quite some time.
 
-The hardware wallet is not creating new randomness here. It is only helping you identify which final word has the correct BIP39 checksum, and then restoring the wallet described by your coin flips.
+The same idea works for longer phrases. On the worksheet, the greyed fields mark the bits you do not generate in the final row of a 12-, 15-, 18-, 21-, or 24-word phrase.
 
-As a rule, avoid using websites or extra software tools just to validate the checksum, unless they are fully offline and truly trusted. The whole point of this method is to avoid leaving a digital trace of the seed. Using the hardware wallet's own restore flow is usually the least invasive place to do that final checksum check.
+The same idea works for longer phrases:
 
-This same idea works for longer BIP39 mnemonics too, but the number of last-word candidates grows quickly:
+- **12 words** → **16** candidates
+- **15 words** → **32** candidates
+- **18 words** → **64** candidates
+- **21 words** → **128** candidates
+- **24 words** → **256** candidates
 
-- **12 words** = 128-bit entropy + 4-bit checksum → **16** candidates
-- **15 words** = 160-bit entropy + 5-bit checksum → **32** candidates
-- **18 words** = 192-bit entropy + 6-bit checksum → **64** candidates
-- **21 words** = 224-bit entropy + 7-bit checksum → **128** candidates
-- **24 words** = 256-bit entropy + 8-bit checksum → **256** candidates
+Avoid websites or extra software for checking candidate phrases unless they are fully offline and truly trusted.
 
 ## Backing up the words
 
-This sheet only helps you generate the words. Storing them so they survive fire, theft, loss, and the people who shouldn't have access is a separate problem and is **beyond the scope of this project**. Paper vs. metal backups, memorization, geographic splits, Shamir secret sharing, BIP-85 derivation, and inheritance planning each have their own trade-offs; the right choice depends on the value at stake, who you trust, and how often you need access.
-
-Two things to keep in mind: a seed phrase is permanent -- if you lose it, the funds are unrecoverable, and if someone else finds it (along with the passphrase, if any), they can spend the funds. Plan for both failure modes.
+This project only helps with generation and lookup. Safe storage is a separate problem. Lose the phrase and the funds are unrecoverable; leak it and someone else can spend them.
 
 ## Exact mapping (optional)
 
-You do not need this to use the sheet. It is only useful if you want to know exactly how the layout maps to the original BIP39 list.
+You do not need this to use the sheet.
 
-Read the numbered bits from left to right:
+Read the 11 bits from left to right:
 
 - bits **1-2** = page
 - bits **3-5** = row
 - bits **6-8** = column
 - bits **9-11** = word
 
-Interpret **heads/dark = 1** and **tails/light = 0**.
+If you want the exact BIP39 list position, read the full 11-bit pattern as binary. The BIP39 wordlist counts from 0, so the **Nth** word uses binary(**N-1**).
 
-If you want the exact BIP39 list position, read the full 11-bit pattern as a binary number. The BIP39 wordlist counts from 0, so the **Nth** word uses binary(**N-1**).
+Example: the **1123rd** word is `middle`.
 
-Example: the **1125th** word is `milk`.
-
-- `1125 - 1 = 1124`
-- `1124` in 11-bit binary is `10001100100`
-- split into groups: `10 | 001 | 100 | 100`
-- so: page `10`, row `001`, column `100`, word `100`
+- `1123 - 1 = 1122`
+- `1122` in 11-bit binary is `10001100010`
+- split into groups: `10 | 001 | 100 | 010`
+- so: page `10`, row `001`, column `100`, word `010`
 
 ## Generating
 
@@ -143,20 +166,21 @@ pip install reportlab
 python3 bip39_pages.py
 ```
 
-Produces `bip39_wordlist.pdf` and `page_1.png` through `page_5.png`.
+Produces `bip39_wordlist.pdf` and `page_1.png` through `page_6.png`.
 
 ## Files
 
-- `english.txt` -- BIP39 English wordlist (2048 words)
-- `bip39_pages.py` -- Generator script
-- `bip39_wordlist.pdf` -- Pre-built PDF
-- `page_{1..5}.png` -- Pre-built page images
+- `english.txt` — BIP39 English wordlist (2048 words)
+- `bip39_pages.py` — generator script
+- `bip39_wordlist.pdf` — pre-built PDF
+- `page_{1..6}.png` — pre-built page images
 
 ## References
 
-- [BIP-0039](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) -- Original spec in the bitcoin/bips repository
-- [BIP 39 on bips.dev](https://bips.dev/39/) -- Easy-to-read web mirror of the spec
-- [english.txt](https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt) -- Standard BIP-0039 English wordlist from [bitcoin/bips](https://github.com/bitcoin/bips)
+- [BIP-0039](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
+- [BIP 39 on bips.dev](https://bips.dev/39/)
+- [english.txt](https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt)
+- Ari Juels, Markus Jakobsson, Elizabeth A. M. Shriver, and Bruce Hillyer, ["How to Turn Loaded Dice into Fair Coins"](https://doi.org/10.1109/18.841170), *IEEE Transactions on Information Theory* 46(3), 2000
 
 ## License
 
